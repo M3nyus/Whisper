@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>1 hang</title>
+</head>
+<body>
+<h1>OneHang</h1>
+
+    <form action="/onehang" method="post">
+        <label for="hang_szam">Írj be egy számot:</label>
+        <input type="text" name="hang_szam" id="hang_szam" required>
+        <button type="submit">Lekérdezés</button>
+    </form>
+
+    {% if szoveg %}
+        <h2>Szöveg a hangból:</h2>
+        <pre>{{ szoveg }}</pre>
+    {% endif %}
+
+    <a href="/subtitle">Vissza a Felirat oldalra.</a>
+</body>
+</html>

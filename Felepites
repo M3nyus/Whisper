@@ -1,0 +1,8 @@
+first_whisper_setup
+    whisper_test.py (main)
+    Audio_Manager.py - hang darabolása és feldolgozása       MEGVAN
+    Text_manager.py - txt fájlok kezelése                   MEGVAN
+    AI_Summer.py - ai általi összegzés                       Megvan
+    Logger.py - logger itt van                               MEGVAN
+    Redis_Manager.py - ez alapján meg a redis szerver
+    Forrasok.py - beállítások és elérések vannak itt         MEGVAN
