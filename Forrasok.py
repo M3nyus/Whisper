@@ -15,10 +15,10 @@ summer = pipeline("summarization",model="t5-large")
 
 #Elérések
 utak = {
-    "audio_file": r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\audio.mp3",
-    "out_folder": r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\hangok",
-    "log_file": r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\log.txt",
-    "egybefuzott": r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\egybefuzott.txt",
-    "osszesitett": r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\osszesitett.txt",
-    "redisbol_ossz" : r"C:\Users\menyh\Desktop\PRO-M\fisrt_shwisper_setup\all_text_from_redis.txt"
+    "audio_file": r"audio.mp3",
+    "out_folder": r"hangok",
+    "log_file": r"log.txt",
+    "egybefuzott": r"output/egybefuzott.txt",
+    "osszesitett": r"output/osszesitett.txt",
+    "redisbol_ossz" : r"all_text_from_redis.txt"
 }

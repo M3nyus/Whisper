@@ -12,7 +12,6 @@ class Text_manager:
         self.logger = logger
         self.redis = redis_manager
 
-
     def all_in_one(self):
         self.logger.logging("Hangok összesítése!")
         self.audio_manager.hang_count = self.audio_manager.get_hang_count()
