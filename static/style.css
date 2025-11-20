@@ -1,0 +1,70 @@
+body {
+    background-image: url('/static/bg.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.button {
+  display: inline-block;
+  border-radius: 4px;
+  background-color: #000000;
+  border: none;
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 22px;
+  padding: 15px;
+  width: 200px;
+  cursor: pointer;
+  margin: 25px;
+}
+
+.button span {
+  display: inline-block;
+  position: relative;
+  transition: 0.5s;
+}
+
+.button span:after {
+  content: '\00bb';
+  position: absolute;
+  opacity: 0;
+  right: -20px;
+  transition: 0.5s;
+}
+
+.button:hover span {
+  padding-right: 25px;
+}
+
+.button:hover span:after {
+  opacity: 1;
+  right: 0;
+}
+
+#leall {
+  display: inline-block;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 15px;
+  box-shadow: 0 9px #999;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  font-weight: bold;
+  z-index: 9999;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#leall:active {
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+}
