@@ -2,22 +2,49 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>1 hang</title>
+    <title>One hang</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 </head>
 <body>
-<h1>OneHang</h1>
+    <main class="container text-center">
+        <h1>OneHang</h1>
 
-    <form action="/onehang" method="post">
-        <label for="hang_szam">Írj be egy számot:</label>
-        <input type="text" name="hang_szam" id="hang_szam" required>
-        <button type="submit">Lekérdezés</button>
-    </form>
+        <h6>Hangok száma: {{hangok_szama}}</h6>
 
-    {% if szoveg %}
-        <h2>Szöveg a hangból:</h2>
-        <pre>{{ szoveg }}</pre>
-    {% endif %}
+        <form action="/onehang" method="post">
+            <div>
+                <label for="hang_szam">Írj be egy számot:</label>
+            <input type="text" name="hang_szam" id="hang_szam" required>
+            </div>
 
-    <a href="/subtitle">Vissza a Felirat oldalra.</a>
+            <div>
+                <button type="submit" class="button"><span>Lekérdezés</span></button>
+            </div>
+        </form>
+
+        {% if szoveg %}
+            {% if szoveg.startswith("Nincs ilyen hang") %}
+                <script>
+                    alert("{{ szoveg }}");
+                </script>
+            {% else %}
+                <h3>Szöveg a hangból:</h3>
+                <div class="text-start">
+                    <pre>{{ szoveg }}</pre>
+                </div>
+            {% endif %}
+        {% endif %}
+
+        <form action="/" method="get">
+            <div class="volt_e">
+                <button type="submit" class="button"><span>Kezdőoldal</span></button>
+            </div>
+        </form>
+    </main>
 </body>
 </html>

@@ -16,6 +16,10 @@ class Text_manager:
         self.logger.logging("Hangok összesítése!")
         self.audio_manager.hang_count = self.audio_manager.get_hang_count()
 
+        # egybefuzott.txt tartalmának törlése
+        with open(self.egybefuzott, "w") as f:
+            pass
+
         words = ""
         for i in range(self.audio_manager.hang_count):
             needed_text = os.path.join(self.out_folder, f"hang_{i}.txt")
@@ -53,9 +57,12 @@ class Text_manager:
     def get_hang_from_redis(self, hang):
         self.logger.logging(f"{hang} hangból szövegkinyerés elkezdődött Redis-ből.")
         tmp_bytestext_from_redis = self.redis.get(hang)
+        if tmp_bytestext_from_redis is None:
+            return f"Nincs ilyen hang: {hang}"
+
         str_tmp = tmp_bytestext_from_redis.decode("utf-8")
         good_tmp = json.loads(str_tmp)
-        print(good_tmp["text"])
+
         self.logger.logging(f"{hang} hang kinyerve Redis-ből.")
         #flaskhoz egy hanghoz
         return good_tmp["text"]

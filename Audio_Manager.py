@@ -17,6 +17,8 @@ class Audio_Manager:
         self.audio = AudioSegment.from_file(audio_file)
         self.hang_count = 0
         self.redis = redis_manager
+        self.audio_len =0
+        self.percent_done = 0
 
     def chunking(self, segment, chunk_size):
         start = 1
@@ -26,12 +28,17 @@ class Audio_Manager:
 
     def working(self):
         start_time = time.time()
+        self.percent_done -= (10 / self.get_audio_len()) * 100
+
+        # Redis összes adat törlése
+        self.redis.delete_all_db()
 
         for i, chunk in enumerate(self.chunking(self.audio, self.chunk_len)):
             self.logger.logging(f"hang_{i} feldolgozás megkezdése.")
             tmp_file = os.path.join(self.out_folder, f"hang_{i}.mp3")
             chunk.export(tmp_file, format="mp3")
             self.hang_count += 1
+            self.percent_done += (10 / self.get_audio_len()) * 100
 
             result = self.model.transcribe(tmp_file, language="hu")
 
@@ -49,7 +56,11 @@ class Audio_Manager:
         end_time = time.time()
         self.logger.logging(f"Feliratozás ideje: {(end_time - start_time)}mp")
 
-
     def get_hang_count(self):
         self.logger.logging("Hangok száma visszaadva.")
         return self.hang_count
+
+    def get_audio_len(self):
+        audio_ms = len(self.audio)
+        self.audio_len = audio_ms / 1000
+        return self.audio_len
