@@ -33,8 +33,8 @@
         <input type="text" id="roomName" class="form-control" placeholder="room name">
       </div>
       <button class="btn btn-primary" onclick="startRoom()">Add room</button>
-      <button>Stop room</button>
-      <button>Get latest timestampId</button>
+      <button class="btn btn-primary" onclick="stopRoom()">Stop room</button>
+      <button class="btn btn-primary" onclick="isRoomActive()">Get latest timestampId</button>
       <button class="btn btn-primary" onclick="listRooms()">List rooms</button>
       <button class="btn btn-primary" onclick="roomStatus()">Get Room Status</button>
       <div class="mb-3">
@@ -72,6 +72,25 @@
             console.error('Failed to fetch.');
           });
         }
+        // gets latest active room or returns false
+        function isRoomActive() {
+          $.getJSON('API/isRoomActive/'+$('#roomName').val(), function(data) {
+            // TODO do not load in html and format
+            $('#res').html(JSON.stringify(data))
+          }).fail(function() {
+            console.error('Failed to fetch.');
+          });
+        }
+        function stopRoom() {
+          $.getJSON('API/stopRoom/'+$('#roomName').val()+'/'+$('#timestampId').val(), function(data) {
+            // TODO do not load in html and format
+            $('#res').html(JSON.stringify(data))
+          }).fail(function() {
+            console.error('Failed to fetch.');
+          });
+        }
+
+        
         /* function checkProgress() {
           $.get('/progress', function(data) {
             // Assume the server returns JSON like { percent: 42 }

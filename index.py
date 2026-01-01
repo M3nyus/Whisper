@@ -43,7 +43,23 @@ def startRoom(roomId):
     # start getting audio 
     # start checking for available audio files in redis 
     # return timestampID for roomId
-    return jsonify(stateManager.startRoom(roomId))
+    return jsonify({'timestampId': stateManager.startRoom(roomId)})
+
+@app.route("/API/isRoomActive/<roomId>", methods=["GET", "POST"])
+def isRoomActive(roomId):
+    # [<roomId>: [<timestampId>]]
+    # check for active recording 
+    # false or timestampId
+    timestampId = stateManager.isRoomActive(roomId)
+    if timestampId!=False:
+        # RETURN ALREADY EXISTING 
+        return jsonify({'timestampId': timestampId})
+    # IF NOT in PROGRESS 
+    # create_entry
+    # start getting audio 
+    # start checking for available audio files in redis 
+    # return timestampID for roomId
+    return False
 
 @app.route("/API/roomStatus/<roomId>/<int:timestampId>", methods=["GET", "POST"])
 def roomStatus(roomId,timestampId):

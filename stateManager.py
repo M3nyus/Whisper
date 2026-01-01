@@ -30,9 +30,6 @@ class StateManager:
                 return False
         '''
         data = self.data.get(roomId)
-        print(data)
-        print(timestampId, type(timestampId))
-        print(data.get(timestampId))
         if data:
             return data.get(timestampId)
             
@@ -43,13 +40,13 @@ class StateManager:
             entry = room.get(timestampId)
             if entry:
                 # TODO stop processes
-                self.data[roomId][timestampId].update('active', False)
+                self.data[roomId][timestampId].update({'active': False})
+                return 'Done'
                 
 
     def listRooms(self):
         data = self.data.keys()
         if data:
-            print(data)
             return data
         return {}
 
@@ -62,7 +59,6 @@ class StateManager:
     def isRoomActive(self, roomId):
         entry, data = self.latest_for_room_entry(roomId)
         if entry:
-            print('e,d', entry, data)
             if data.get('active'): 
                 return entry
         return False
