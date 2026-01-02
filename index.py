@@ -10,14 +10,15 @@ from stateManager import *
 
 
 load_dotenv()
-global REDIS_HOST, REDIS_PORT, REDIS_DB
-LOGFILE = os.getenv("LOGFILE")
+global REDIS_HOST, REDIS_PORT, REDIS_DB,OUTPUT_DIR,WHISPER_MODEL
 REDIS_HOST= os.getenv("REDIS_HOST")
 REDIS_PORT= os.getenv("REDIS_PORT")
 REDIS_DB= os.getenv("REDIS_DB")
-
+OUTPUT_DIR=os.getenv("OUTPUT_DIR")
+WHISPER_MODEL=os.getenv("WHISPER_MODEL")
 # start logger 
 global logger
+LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
 
 #redisManager = Redis_Manager()
@@ -91,6 +92,17 @@ def stopRoom(roomId,timestampId):
 def listRooms():
     # [<roomId>,<roomId>, ...]
     return jsonify(list(stateManager.listRooms()))
+
+@app.route("/API/saveState", methods=["GET", "POST"])
+def saveState():
+    # [<roomId>,<roomId>, ...]
+    stateManager.saveState()
+    return 'OK'
+@app.route("/API/debugData", methods=["GET", "POST"])
+def debugData():
+    # [<roomId>,<roomId>, ...]
+    
+    return jsonify(list(stateManager.debugData()))    
 
 @app.route("/API/listRoom/<roomId>", methods=["GET", "POST"])
 def listRoom(roomId):

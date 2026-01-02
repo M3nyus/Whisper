@@ -1,10 +1,12 @@
 import time    
+import os
+import pickle 
 
 class StateManager:
     def __init__(self):
-        # TODO load files from disk or store 
-        self.data = {}
-    def startRoom(self, roomId, model = 'base'): 
+        # TODO load files from disk or store
+        self.data = self.loadState() #{}
+    def startRoom(self, roomId, model = "base"): 
         fallback_ct = self.get_current_time()
         room = self.data.get(roomId)
         # create new dict
@@ -32,6 +34,7 @@ class StateManager:
         data = self.data.get(roomId)
         if data:
             return data.get(timestampId)
+        return False
             
     def stopRoom(self, roomId, timestampId): 
         room = self.data.get(roomId)
@@ -74,6 +77,7 @@ class StateManager:
     def create_entry(self, model):
         entry = {
           'audio_files': {},
+          'transcribed_files': {},
           'active': True,
           'getting_audio': False,
           'transcribing': False,
@@ -85,3 +89,20 @@ class StateManager:
     def get_current_time(self):
         # epoch_time
         return int(time.time())
+    def saveState(self):
+        # save state to disk
+        data = self.data
+        if data: 
+            with open('config/state.pkl', 'wb') as f:
+                pickle.dump(data, f)
+
+    def loadState(self):
+        # load state from disk
+        with open('config/state.pkl', 'rb') as f:
+            loaded_dict = pickle.load(f)
+            print(loaded_dict)
+            return loaded_dict
+    def debugData(self):
+        print(self.data)
+        return self.data
+    
