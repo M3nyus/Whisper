@@ -24,7 +24,7 @@ logger = Logger(LOGFILE)
 
 redisManager = Redis_Manager(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 stateManager = StateManager()
-transcriptionManager = TextManager(WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
+transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
 bots = {}
 
 app = Flask(__name__)
@@ -132,6 +132,11 @@ def debugData():
 def listRoom(roomId):
     # [<roomId>: [<timestampId>, ...]]
     return jsonify(list(stateManager.listRoom(roomId)))    
+
+@app.route("/API/getLastText/<roomId>", methods=["GET", "POST"])
+def getLastText(roomId):
+    # [<roomId>: [<timestampId>, ...]]
+    return jsonify({'text': stateManager.getLastText(roomId)})
 
 @app.route("/API/listAudioFiles/<roomId>/<int:timestampId>", methods=["GET", "POST"])
 def listAudioFiles(roomId, timestampId):

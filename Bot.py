@@ -73,7 +73,8 @@ class AudioToRedisTrack(AudioStreamTrack):
         # mark:0
         self.redis.xadd(redisKey, {"pcm": tomb64})
         self.redis.set("room_id", self.roomId)
-        self.redis.set("room_actual", redisKey)
+        
+        self.redis.set(f"{self.roomId}_actual", redisKey)
         #print(f"uj 10s chunk {chunk} ment be {len(self.buffer)} frame")
         self.buffer = []
 

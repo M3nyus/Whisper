@@ -84,6 +84,28 @@ class StateManager:
         ts = max(room)
         return ts, room.get(ts)
     
+    def addText(self, roomId, chunk, text):
+        print('addText', roomId, chunk, text)
+        print(self.data.get(roomId))
+        entry, data = self.latest_for_room_entry(roomId)
+        print('addText2', entry, data)
+        key = f"{chunk}"
+        if entry:
+            self.data[roomId][entry]['transcribed_files'][key] = text
+        else:
+            # error?
+            print('invalid state?')
+    
+    
+    def getLastText(self, roomId):
+        entry, data = self.latest_for_room_entry(roomId)
+        text_data = self.data[roomId][entry]['transcribed_files']
+        if len(text_data) > 0:
+            ts = max(text_data)
+            if ts: 
+                return text_data[ts]
+        return '...'
+    
     def create_entry(self, model):
         entry = {
           'audio_files': {},

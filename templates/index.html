@@ -37,6 +37,7 @@
       <button class="btn btn-primary" onclick="isRoomActive()">Get latest timestampId</button>
       <button class="btn btn-primary" onclick="listRooms()">List rooms</button>
       <button class="btn btn-primary" onclick="roomStatus()">Get Room Status</button>
+      <button class="btn btn-primary" onclick="getLastText()">getLastText</button>
       <div class="mb-3">
         <label class="form-label">Timestamp ID</label>
         <input type="text" id="timestampId" class="form-control" placeholder="Timestamp ID">
@@ -89,7 +90,16 @@
             console.error('Failed to fetch.');
           });
         }
-
+        function getLastText() {
+          $.getJSON('API/getLastText/'+$('#roomName').val(), function(data) {
+            // TODO do not load in html and format
+            $('#res').html(JSON.stringify(data))
+            setTimeout(getLastText, 5000);
+          }).fail(function() {
+            console.error('Failed to fetch.');
+          });
+        }
+        
         
         /* function checkProgress() {
           $.get('/progress', function(data) {
