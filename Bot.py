@@ -55,28 +55,29 @@ class AudioToRedisTrack(AudioStreamTrack):
         self.startTime = time.time()
         self.currChunk=0
         self.buffer = []
+        self.run = True
+
+    def override(self,stop):
+        self.run = False
 
     async def recv(self):
         frame = await self.source_track.recv()
-        tomb_bytes = frame.to_ndarray().tobytes()
+        if self.run:
+            tomb_bytes = frame.to_ndarray().tobytes()
+            self.buffer.append(tomb_bytes)
+            eltelt = time.time() - self.startTime
+            chunk = int(int(eltelt) // 10)
+            # self.currChunk = chunk
+            tomb64 = base64.b64encode(b"".join(self.buffer)).decode()
+            redisKey = f"{self.roomId}:{chunk}"
+            #print('redisKey',redisKey)
+            # mark:0
+            self.redis.xadd(redisKey, {"pcm": tomb64})
+            self.redis.set("room_id", self.roomId)
 
-        self.buffer.append(tomb_bytes)
-
-        eltelt = time.time() - self.startTime
-        chunk = int(int(eltelt) // 10)
-
-        
-        # self.currChunk = chunk
-        tomb64 = base64.b64encode(b"".join(self.buffer)).decode()
-        redisKey = f"{self.roomId}:{chunk}"
-        #print('redisKey',redisKey)
-        # mark:0
-        self.redis.xadd(redisKey, {"pcm": tomb64})
-        self.redis.set("room_id", self.roomId)
-        
-        self.redis.set(f"{self.roomId}_actual", redisKey)
-        #print(f"uj 10s chunk {chunk} ment be {len(self.buffer)} frame")
-        self.buffer = []
+            self.redis.set(f"{self.roomId}_actual", redisKey)
+            #print(f"uj 10s chunk {chunk} ment be {len(self.buffer)} frame")
+            self.buffer = []
 
         return frame
 
@@ -104,14 +105,8 @@ class Demo:
         # Redis
         self.redis = redis.Redis(host='127.0.0.1', port=6379, db=0)
 
-        if player and player.audio:
-            audioTrack = AudioToRedisTrack(player.audio, self.redis, self.roomId)
-        else:
-            audioTrack = AudioToRedisTrack(AudioStreamTrack(), self.redis, self.roomId)
-        if player and player.video:
-            videoTrack = player.video
-        else:
-            videoTrack = VideoStreamTrack()
+        audioTrack = AudioStreamTrack()
+        videoTrack = VideoStreamTrack()
 
         self._videoTrack = videoTrack
         self._audioTrack = audioTrack

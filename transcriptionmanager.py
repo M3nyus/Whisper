@@ -30,22 +30,39 @@ class TextManager:
             # mark:10
             actual = self.redisManager.get(f"{roomId}_actual")
             print('room_actual', actual)
-
-            while actual != currKey or self.stateManager.roomStatus(roomId, timestampId)['getting_audio']:
-                if actual:
-                    await asyncio.sleep(11)
+            errCounter = 0
+            # ha az utolso transcribeolt audio az az aktuális és a getting audio az false
+            #while actual != currKey or self.stateManager.roomStatus(roomId, timestampId)['getting_audio']:
+            while True:
+                if actual == currKey and self.stateManager.roomStatus(roomId, timestampId)['getting_audio']==False:
+                    # elértuk az utolsó audiót és leált a rögzítés
+                    break
+                elif actual is None:
+                    # még nincs audio file
+                    await asyncio.sleep(5)
+                    print('...')
+                    errCounter += 1
+                    if errCounter > 5:
+                        break
+                elif actual == currKey and self.stateManager.roomStatus(roomId, timestampId)['getting_audio']==True:
+                    await asyncio.sleep(1)
+                elif actual != currKey and self.stateManager.roomStatus(roomId, timestampId)['getting_audio']==True:
+                    print('room_actual', actual)
+                    errCounter = 0
+                    # van audio, de lehet hogy még írás közben van
+                    await asyncio.sleep(1)
                     print('----')
                     await self.redisManager.redis_stream_to_wav(roomId, chunk)
                     print('++++')
                     await self.transcribeChunk(roomId, chunk)
-
                     chunk += 1
                     currKey = f"{roomId}:{chunk}"
                 else:
-                    await asyncio.sleep(5)
-                    print('...')
+                    print('ezmiez')
+
                 actual = self.redisManager.get(f"{roomId}_actual")
-                print('room_actual', actual)
+
+
 
 
 
