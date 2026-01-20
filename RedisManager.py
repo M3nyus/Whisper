@@ -26,18 +26,14 @@ class Redis_Manager():
 
     #kieg awaitek
     async def redis_stream_to_wav(self, roomId, chunk, output_file="redis_audio.wav", seconds=10,):
-        roomId = roomId
-        chunk = chunk
         mp3_szamlalo_kulcs = "db_mp3"
-        room_id = 'room_id'
         mintavetelezes = 48000
-
+        key = f"{roomId}:{chunk}"
 
         utolso_id = "0-0"
         pcm_lista = {}  # dict
-
         while True:
-            valasz = await self.client.xread({roomId: utolso_id}, count=10000, block=10)
+            valasz = self.client.xread({key: utolso_id})
             # print(valasz)
             if not valasz:
                 break
@@ -45,44 +41,29 @@ class Redis_Manager():
                 for uzenet_id, mezok in uzenetek:
                     utolso_id = uzenet_id.decode()
                     pcm_b64 = mezok[b'pcm'].decode()
-
                     pcm_bytes = base64.b64decode(pcm_b64)
-
                     pcm_array = np.frombuffer(pcm_bytes, dtype=np.int16)
                     pcm_lista[utolso_id] = pcm_array
 
         if not pcm_lista:
             print("Nincs audio adat a Redis-ben!")
             return
-        print('sort')
-        pcm_list = []
-        with wave.open('output.wav', "wb") as wf:
+        wav_fajl = f"{roomId}{chunk}.wav"
+
+        with wave.open(wav_fajl, "wb") as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(SAMPLE_WIDTH)
             wf.setframerate(SAMPLE_RATE)
             for key, value in pcm_lista.items():
                 print(key)
-                pcm_list.append(value)
                 wf.writeframes(value)
 
-        print('sort end')
-        teljes_pcm = np.concatenate(pcm_list)
-
-        wav_fajl = f"{room_id}{chunk}.wav"
-        mp3_fajl = f"{room_id}{chunk}.mp3"
-
-        sf.write(wav_fajl, teljes_pcm, samplerate=mintavetelezes)
-
         audio = AudioSegment.from_wav(wav_fajl)
+        mp3_fajl = f"{roomId}{chunk}.mp3"
         audio.export(mp3_fajl, format="mp3")
 
-        #redisbe az mp3
-        with open(mp3_fajl, "rb") as f:
-            mp3 = f.read()
+        return await asyncio.sleep(1)
 
-        await self.client.set(f"komplett{room_id}{chunk}", mp3)
-
-        await self.client.close()
 
     def redis_ell(self):
         info1 = self.client.xinfo_stream("audio_stream")

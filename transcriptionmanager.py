@@ -22,22 +22,30 @@ class TextManager:
         chunk = 0
         print("asdasdasdadsasdasdasdadsasdasdasdadsasdasdasdadsasdasdasdadsasdasdasdadsasdasdasdadsasdasdasdadsasdasdasdads")
         while  True:
+            # mark:0
             currKey = f"{roomId}:{chunk}"
             nextKey = f"{roomId}:{chunk + 1}"
             self.logger.logging(currKey)
 
-            if self.redisManager.get(currKey) is not None:
-                await self.redisManager.redis_stream_to_wav(currKey, roomId, chunk)
-                await self.transcribeChunk(f"komplett{roomId}{chunk}", chunk)
+            # mark:10
+            actual = self.redisManager.get('room_actual')
+            print('room_actual', actual)
 
-                if self.redisManager.get(nextKey) is None and self.stateManager.roomStatus(roomId, timestampId):
-                    await asyncio.sleep(1)
-                if self.redisManager.get(nextKey) is None:
-                    await asyncio.sleep(1)
-                else:
+            while actual != currKey or self.stateManager.roomStatus(roomId, timestampId)['getting_audio']:
+                if actual:
+                    await asyncio.sleep(11)
+                    print('----')
+                    await self.redisManager.redis_stream_to_wav(roomId, chunk)
+                    print('++++')
+                    await self.transcribeChunk(roomId, chunk)
+
                     chunk += 1
-            else:
-                await asyncio.sleep(1)
+                    currKey = f"{roomId}:{chunk}"
+                else:
+                    await asyncio.sleep(5)
+                    print('...')
+                actual = self.redisManager.get('room_actual')
+                print('room_actual', actual)
 
 
 
@@ -46,22 +54,15 @@ class TextManager:
         self.stateManager.StateManager.stopRoom(roomId, timestampId)
 
     
-    async def transcribeChunk(self, key, chunk):
-        self.logger.logging(f"{key} - audio_{chunk} adat betöltés.")
+    async def transcribeChunk(self, roomId, chunk):
+        key = f"{roomId}{chunk}"
+        self.logger.logging(f"{roomId}{chunk} - audio adat betöltés.")
         # roomname+timestamp+audio_{chunk}
-        back = self.redisManager.get(key)
-        with open(f"back{key}.mp3", "wb") as f:
-            f.write(back)
-
+        mp3_fajl = f"{roomId}{chunk}.mp3"
         self.logger.logging(f"{key} - audio_{chunk} feldolgozás megkezdése.")
-
-        result = self.model.transcribe(os.path.join(os.getcwd(),f"back{key}.mp3"), language="hu")
-        
+        result = self.model.transcribe(os.path.join(os.getcwd(), mp3_fajl), language="hu")
         self.logger.logging(f"{key} - audio_{chunk} feldolgozás kész.")
-        
         self.redisManager.set(key+'res_'+str(chunk), result)
-        
         self.logger.logging(f"{key} - audio_{chunk} feldolgozás redisbe írva [res_{chunk}].")
-        
         with open(self.OUTPUT_DIR+key+'res_'+str(chunk), "w", encoding="utf-8") as f:
                 f.write(result["text"])

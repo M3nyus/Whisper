@@ -32,7 +32,7 @@ import time
 
 ice_server = None
 iceServer = None
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 T = TypeVar("T")
 
 def static_response(c):
@@ -63,16 +63,19 @@ class AudioToRedisTrack(AudioStreamTrack):
         self.buffer.append(tomb_bytes)
 
         eltelt = time.time() - self.startTime
-        chunk = int(eltelt // 10)
+        chunk = int(int(eltelt) // 10)
 
-        if chunk != self.currChunk:
-            self.currChunk = chunk
-            tomb64 = base64.b64encode(b"".join(self.buffer)).decode()
-            redisKey = f"{self.roomId}:{self.currChunk}"
-            self.redis.xadd(redisKey, {"pcm": tomb64})
-            self.redis.set("room_id", self.roomId)
-            print(f"uj 10s chunk {self.currChunk} ment be {len(self.buffer)} frame")
-            self.buffer = []
+        
+        # self.currChunk = chunk
+        tomb64 = base64.b64encode(b"".join(self.buffer)).decode()
+        redisKey = f"{self.roomId}:{chunk}"
+        #print('redisKey',redisKey)
+        # mark:0
+        self.redis.xadd(redisKey, {"pcm": tomb64})
+        self.redis.set("room_id", self.roomId)
+        self.redis.set("room_actual", redisKey)
+        #print(f"uj 10s chunk {chunk} ment be {len(self.buffer)} frame")
+        self.buffer = []
 
         return frame
 
