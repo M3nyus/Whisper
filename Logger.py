@@ -1,5 +1,6 @@
 from datetime import datetime
 from networkx.classes import selfloop_edges
+import os
 
 class Logger:
     def __init__(self, log_file):

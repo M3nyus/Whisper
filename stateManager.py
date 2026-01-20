@@ -22,21 +22,16 @@ class StateManager:
             # create new entry on existing room
             self.data[roomId][fallback_ct] = self.create_entry(model)
             return fallback_ct
+
     def roomStatus(self, roomId, timestampId):
-        '''if timestampId==None:
-            entry, data = self.latest_for_room_entry(roomId)
-            if entry:
-                print('e,d', entry, data)
-                if data.get('active'): 
-                    return data
-                return False
-        '''
         data = self.data.get(roomId)
         if data:
             return data.get(timestampId)
         return False
-            
+
+     #nem hasznalom
     def stopRoom(self, roomId, timestampId): 
+        print("stop2")
         room = self.data.get(roomId)
 
         if room:
@@ -45,7 +40,6 @@ class StateManager:
                 # TODO stop processes
                 self.data[roomId][timestampId].update({'active': False})
                 return 'Done'
-                
 
     def listRooms(self):
         data = self.data.keys()
@@ -58,6 +52,22 @@ class StateManager:
         if data:
             return data.keys()
         return {}
+
+    #KIEG
+    def listAudioFiles(self, roomId, timestampId):
+        room = self.data.get(roomId)
+        if not room:
+            return []
+
+        entry = room.get(timestampId)
+        if not entry:
+            return []
+
+        audioFiles = entry.get('audioFiles')
+        if not audioFiles:
+            return []
+
+        return list(audioFiles.keys())
 
     def isRoomActive(self, roomId):
         entry, data = self.latest_for_room_entry(roomId)
@@ -98,10 +108,15 @@ class StateManager:
 
     def loadState(self):
         # load state from disk
-        with open('config/state.pkl', 'rb') as f:
-            loaded_dict = pickle.load(f)
-            print(loaded_dict)
-            return loaded_dict
+
+        if os.path.exists('config/state.pkl'):
+            with open('config/state.pkl', 'rb') as f:
+                loaded_dict = pickle.load(f)
+                print(loaded_dict)
+                return loaded_dict
+
+        return {}
+
     def debugData(self):
         print(self.data)
         return self.data
