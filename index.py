@@ -23,6 +23,7 @@ LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
 
 redisManager = Redis_Manager(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
+redisManager.delete_aktualis_db()
 stateManager = StateManager()
 transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
 bots = {}
@@ -110,7 +111,7 @@ def stopRoom(roomId,timestampId):
         del bots[roomId]
 
     stateManager.data[roomId][timestampId]['getting_audio'] = False
-    return jsonify({'status': room})
+    return jsonify({'status': 'OK'})
 
 @app.route("/API/listRooms", methods=["GET", "POST"])
 def listRooms():
