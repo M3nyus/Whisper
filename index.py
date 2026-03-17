@@ -3,7 +3,8 @@ import asyncio
 import threading
 from dotenv import load_dotenv
 import os
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
+from pydub import AudioSegment
 from Logger import *
 from stateManager import StateManager
 from RedisManager import Redis_Manager
@@ -21,14 +22,17 @@ WHISPER_MODEL=os.getenv("WHISPER_MODEL")
 global logger
 LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
+global bot
+progressData = {"curr": 0, "total": 0}
 
 redisManager = Redis_Manager(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, LOGFILE=LOGFILE)
+redisManager.fut_e()
 redisManager.delete_aktualis_db()
 stateManager = StateManager(LOGFILE)
-transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
+transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE, progressData)
 bots = {}
 
-redisManager.fut_e()
+
 app = Flask(__name__)
 logger.Logging("Flask szerver elindult.")
 
@@ -83,17 +87,7 @@ def roomStatus(roomId,timestampId):
     status = stateManager.roomStatus(roomId,timestampId)
     logger.Logging(f"Státusz: {status}")
     return jsonify(status)
-'''
-@app.route("/API/roomProgress/<roomId>/<int:timestampId>", methods=["GET", "POST"])
-def roomProgress(roomId,timestampId):
-    # audio files : array
-    # state active - true/false 
-    # state getting_audio : true / false  
-    # state transcribeing : true / false  
-    # state transcribeing_model :  modelname 
-    status = stateManager.getProgress(roomId,timestampId)
-    return jsonify(status)
-'''
+
 @app.route("/API/stopRoom/<roomId>/<int:timestampId>", methods=["GET", "POST"])
 def stopRoom(roomId,timestampId):
     aktiveBot = bots.get(roomId)
@@ -166,11 +160,61 @@ def addPlusBot(roomId):
 
 @app.route("/API/recorderPause/<roomId>", methods=["GET", "POST"])
 def recorderPause(rooId):
-    demo.pauseRecord(rooId)
+    bot.pauseRecord(rooId)
 
 @app.route("/API/recorderResume/<roomId>", methods=["GET", "POST"])
 def resumeRecording(rooId):
-    demo.resumeRecording(rooId)
+    bot.resumeRecording(rooId)
+
+@app.route("/API/getMp3", methods=["GET", "POST"])
+def getMp3():
+    mp3_folder = os.path.join(os.getcwd(), "mp3")
+    mp3_files = []
+
+    if os.path.exists(mp3_folder):
+        mp3_files = [f for f in os.listdir(mp3_folder) if f.endswith(".mp3")]
+
+    return render_template("getMP3.html", mp3_files=mp3_files)
+
+@app.route("/API/getMp3/translate", methods=["GET", "POST"])
+def translate():
+    file_name = request.json.get("fileName")
+    if not file_name:
+        return jsonify({"error": "Nincs kiválasztva fájl!"}), 400
+
+    mp3_path = os.path.join(os.getcwd(), "mp3", file_name)
+    if not os.path.exists(mp3_path):
+        return jsonify({"error": "Fájl nem található!"}), 404
+
+    audio = AudioSegment.from_mp3(mp3_path)
+
+    transcriptionManager.working(audio, sec=10)  # sec=chunk hossz másodpercben
+
+    felirat_file = os.path.join(os.getcwd(), "mp3", "felirat", "felirat.txt")
+    if os.path.exists(felirat_file):
+        with open(felirat_file, "r", encoding="utf-8") as f:
+            text = f.read()
+    else:
+        text = ""
+
+    return jsonify({"text": text})
+
+@app.route("/API/getMp3/clear", methods=["GET", "POST"])
+def clear():
+    feliratFile = os.path.join(os.getcwd(), "mp3", "felirat", "felirat.txt")
+
+    if os.path.exists(feliratFile):
+        with open(feliratFile, "w", encoding="utf-8") as f:
+            f.write("")
+
+    progressData["current"] = 0
+    progressData["total"] = 0
+
+    return jsonify({"status": "cleared"})
+
+@app.route("/API/getMp3/progress", methods=["GET"])
+def get_progress():
+    return jsonify(progressData)
 
 def startBot(roomId):
     loop = asyncio.new_event_loop()
