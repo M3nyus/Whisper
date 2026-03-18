@@ -14,14 +14,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # pip + setuptools rendbetétele
-RUN pip install --upgrade pip setuptools wheel
+RUN pip3 install --upgrade pip setuptools wheel
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 COPY . .
 
 EXPOSE 5000
 
-CMD ["python", "index.py"]
+#CMD ["sleep", "3600"]
+CMD ["python3", "index.py"]

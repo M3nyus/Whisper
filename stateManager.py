@@ -6,8 +6,8 @@ from Logger import *
 class StateManager:
     def __init__(self, LOGFILE):
         # TODO load files from disk or store
-        self.data = self.loadState() #{}
         self.logger = Logger(LOGFILE)
+        self.data = self.loadState() #{}
 
     def startRoom(self, roomId, model = "base"): 
         fallback_ct = self.getCurrentTime()
