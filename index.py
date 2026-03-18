@@ -23,13 +23,12 @@ global logger
 LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
 global bot
-progressData = {"curr": 0, "total": 0}
 
 redisManager = Redis_Manager(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, LOGFILE=LOGFILE)
 redisManager.fut_e()
 redisManager.delete_aktualis_db()
 stateManager = StateManager(LOGFILE)
-transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE, progressData)
+transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
 bots = {}
 
 
@@ -166,6 +165,8 @@ def recorderPause(rooId):
 def resumeRecording(rooId):
     bot.resumeRecording(rooId)
 
+#mp3 DEMO innen
+
 @app.route("/API/getMp3", methods=["GET", "POST"])
 def getMp3():
     mp3_folder = os.path.join(os.getcwd(), "mp3")
@@ -178,43 +179,46 @@ def getMp3():
 
 @app.route("/API/getMp3/translate", methods=["GET", "POST"])
 def translate():
-    file_name = request.json.get("fileName")
-    if not file_name:
-        return jsonify({"error": "Nincs kiválasztva fájl!"}), 400
+    fileName = request.json.get("fileName")
+    if not fileName:
+        return jsonify({"error": "Nincs kiválasztva fájl!"})
 
-    mp3_path = os.path.join(os.getcwd(), "mp3", file_name)
+    mp3_path = os.path.join(os.getcwd(), "mp3", fileName)
     if not os.path.exists(mp3_path):
-        return jsonify({"error": "Fájl nem található!"}), 404
+        return jsonify({"error": "Fájl nem található!"})
 
     audio = AudioSegment.from_mp3(mp3_path)
 
-    transcriptionManager.working(audio, sec=10)  # sec=chunk hossz másodpercben
+    global redisKey
+    redisKey = transcriptionManager.working(audio, 10, fileName)
+    print(redisKey)
 
-    felirat_file = os.path.join(os.getcwd(), "mp3", "felirat", "felirat.txt")
-    if os.path.exists(felirat_file):
-        with open(felirat_file, "r", encoding="utf-8") as f:
-            text = f.read()
-    else:
-        text = ""
+    bytesText = redisManager.get(redisKey) or b""
+    text = bytesText.decode("utf-8")
 
     return jsonify({"text": text})
 
-@app.route("/API/getMp3/clear", methods=["GET", "POST"])
-def clear():
-    feliratFile = os.path.join(os.getcwd(), "mp3", "felirat", "felirat.txt")
+@app.route("/API/getMp3/clear/<fileName>", methods=["GET", "POST"])
+def clear(fileName):
+    redisManager.delete_key(redisKey)
 
-    if os.path.exists(feliratFile):
-        with open(feliratFile, "w", encoding="utf-8") as f:
-            f.write("")
-
-    progressData["current"] = 0
-    progressData["total"] = 0
+    progressKey = f"progress:{fileName}"
+    redisManager.set(f"{progressKey}:total", 0)
+    redisManager.set(f"{progressKey}:curr", 0)
 
     return jsonify({"status": "cleared"})
 
-@app.route("/API/getMp3/progress", methods=["GET"])
-def get_progress():
-    return jsonify(progressData)
+@app.route("/API/getMp3/progress/<fileName>", methods=["GET"])
+def get_progress(fileName):
+    key = f"progress:{fileName}"
+
+    current = redisManager.get(f"{key}:curr") or 0
+    total = redisManager.get(f"{key}:total") or 0
+
+    return jsonify({
+        "curr": int(current),
+        "total": int(total)
+    })
 
 def startBot(roomId):
     loop = asyncio.new_event_loop()

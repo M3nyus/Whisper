@@ -55,6 +55,8 @@
   </div>
 
   <script>
+    let currentFileName = null;
+
     function shutdownServer() {
         $.get('/API/programStop')
           .fail(function() {
@@ -63,34 +65,37 @@
     }
 
     function startMp3Transcription() {
-    const fileName = $('#mp3Select').val();
-    if (!fileName) {
-        alert("Válassz egy mp3 fájlt!");
-        return;
-    }
+        const fileName = $('#mp3Select').val();
 
-    $('#res').html("Feliratozás folyamatban...");
+        currentFileName = fileName;
 
-    startProgressPolling();
-
-    $.ajax({
-        url: "/API/getMp3/translate",
-        type: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ fileName: fileName }),
-        success: function(data) {
-            if(data.text){
-                $('#res').html(data.text);
-            } else if(data.error){
-                $('#res').html("Hiba: " + data.error);
-            }
-        },
-        error: function(err){
-            console.error(err);
-            $('#res').html("Hiba történt a feliratozás során!");
+        if (!fileName) {
+            alert("Válassz egy mp3 fájlt!");
+            return;
         }
-    });
-}
+
+        $('#res').html("Feliratozás folyamatban...");
+
+        startProgressPolling();
+
+        $.ajax({
+            url: "/API/getMp3/translate",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ fileName: fileName }),
+            success: function(data) {
+                if(data.text){
+                    $('#res').html(data.text);
+                } else if(data.error){
+                    $('#res').html("Hiba: " + data.error);
+                }
+            },
+            error: function(err){
+                console.error(err);
+                $('#res').html("Hiba történt a feliratozás során!");
+            }
+        });
+    }
 
       function goBack() {
             window.location.href = "/";
@@ -98,7 +103,7 @@
 
       function clearText() {
         $.ajax({
-            url: "/API/getMp3/clear",
+            url: "/API/getMp3/clear/" + currentFileName,
             type: "POST",
             success: function() {
                 $('#res').html("");
@@ -116,9 +121,12 @@
       let progressInterval = null;
         function startProgressPolling() {
             progressInterval = setInterval(function () {
-                $.get("/API/getMp3/progress", function (data) {
+
+                if (!currentFileName) return;
+
+                $.get("/API/getMp3/progress/" + currentFileName, function (data) {
                     if (data.total > 0) {
-                        let percent = Math.floor((data.current / data.total) * 100);
+                        let percent = Math.floor((data.curr / data.total) * 100);
                         $('#progressBar').css('width', percent + '%');
                         $('#progressBar').text(percent + '%');
 
@@ -127,7 +135,7 @@
                         }
                     }
                 });
-            }, 1000); // 1 mp
+            }, 1000);
         }
   </script>
 

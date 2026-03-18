@@ -1,13 +1,15 @@
 import os.path
 import time
 import whisper
+from dotenv import get_key
+
 from stateManager import StateManager
 from Logger import *
 from RedisManager import *
 
 # starts transcription on the audio recived by the audio manager
 class TextManager:
-    def __init__(self,stateManager, WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE, progressData):
+    def __init__(self,stateManager, WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE):
         # active rooms
         self.data = {}
         self.model = whisper.load_model(WHISPER_MODEL)
@@ -15,7 +17,6 @@ class TextManager:
         self.redisManager = Redis_Manager(REDIS_HOST, REDIS_PORT, REDIS_DB, LOGFILE)
         self.logger = Logger(LOGFILE)
         self.stateManager = stateManager
-        self.progressData = progressData
 
     async def startTranscription(self, roomId, timestampId):
         self.logger.logging(f"Feliratozás megkezdése ({roomId}, {timestampId}).")
@@ -77,33 +78,46 @@ class TextManager:
 
     def chunking(self, segment, chunkSizeSec):
         chunk_size = chunkSizeSec * 1000
-        start = 1
+        start = 0
 
         while start < len(segment):
             yield segment[start:start + chunk_size]
             start += chunk_size
 
-    def working(self, audio, sec):
+    def getKey(self, name):
+        key = name
+        i = 0
+
+        while self.redisManager.get(key) is not None:
+            i += 1
+            key = f"{name}_{i}"
+
+        self.redisManager.set(key, "")
+        return key
+
+    def working(self, audio, sec, fileName):
         hangMappa = os.path.join(os.getcwd(), "mp3", "hang")
-        feliratMappa = os.path.join(os.getcwd(), "mp3", "felirat")
-
         chunks = list(self.chunking(audio, sec))
+        existKey = self.getKey(fileName)
+        progressKey = f"progress:{existKey}"
 
-        self.progressData["total"] = len(chunks)
-        self.progressData["curr"] = 0
+        self.redisManager.delete_key(f"{progressKey}:total")
+        self.redisManager.delete_key(f"{progressKey}:curr")
+        self.redisManager.set(f"{progressKey}:total", len(chunks))
+        self.redisManager.set(f"{progressKey}:curr", 0)
 
-        for i, chunk in enumerate(self.chunking(audio, sec)):
+        for i, chunk in enumerate(chunks):
             self.logger.Logging(f"hang_{i} feldolgozás megkezdése.")
             tmp_file = os.path.join(hangMappa, f"hang_{i}.mp3")
             chunk.export(tmp_file, format="mp3")
 
             result = self.model.transcribe(tmp_file, language="hu")
 
-            output_txt = os.path.join(feliratMappa, f"felirat.txt")
-            with open(output_txt, "a", encoding="utf-8") as f:
-                f.write(result["text"] + " ")
+            self.redisManager.append(existKey, result["text"] + " ")
 
-            self.progressData["current"] = i + 1
+            self.redisManager.set(f"{progressKey}:curr", i + 1)
 
             self.logger.Logging(f"hang_{i} feldolgozva.")
             print(f"hang_{i} feldolgozva.")
+
+        return existKey

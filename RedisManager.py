@@ -77,6 +77,10 @@ class Redis_Manager():
         self.logger.Logging(f"Redis - Get: {kulcs}")
         return self.client.get(kulcs)
 
+    def append(self, key, value):
+        self.client.append(key, value)
+        self.logger.Logging("Append - {key}")
+
     def delete_aktualis_db(self):
         aktualisDb = self.client.connection_pool.connection_kwargs.get("db")
         self.client.flushdb()
