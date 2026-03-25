@@ -56,17 +56,40 @@
 
   <script>
     let currentFileName = null;
+    let currentKey = null;
+    let uuid = "";
+
+    $(document).ready(function() {
+        $.getJSON("/API/getUuid", function(response) {
+            uuid = response.uuid;
+            console.log("Jelenlegi UUID:", uuid);
+        });
+    });
 
     function shutdownServer() {
-        $.get('/API/programStop')
-          .fail(function() {
-              console.error('Failed to fetch.');
-          });
+        if (!uuid) {
+            alert("UUID nem érhető el!");
+            return;
+        }
+
+        $.ajax({
+            url: "/API/programStop",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ uuid: uuid }),
+            dataType: "json",
+            success: function(response) {
+                console.log("Leállítás sikeres:", response);
+            },
+            error: function(err) {
+                console.error("Leállítás sikertelen:", err);
+                alert("Hiba a leállításnál.");
+            }
+        });
     }
 
     function startMp3Transcription() {
         const fileName = $('#mp3Select').val();
-
         currentFileName = fileName;
 
         if (!fileName) {
@@ -84,6 +107,8 @@
             contentType: "application/json",
             data: JSON.stringify({ fileName: fileName }),
             success: function(data) {
+                currentKey = data.key;
+
                 if(data.text){
                     $('#res').html(data.text);
                 } else if(data.error){
@@ -102,20 +127,28 @@
       }
 
       function clearText() {
-        $.ajax({
-            url: "/API/getMp3/clear/" + currentFileName,
-            type: "POST",
-            success: function() {
-                $('#res').html("");
-
-                $('#progressBar').css('width', '0%');
-                $('#progressBar').text('0%');
-            },
-            error: function() {
-                alert("Hiba a törlésnél!");
+            if (!currentKey) {
+                alert("Nincs törölhető adat!")
+                return;
             }
-        });
-    }
+
+            $.ajax({
+                url: "/API/getMp3/clear",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ key: currentKey }),
+                success: function() {
+                    $('#res').html("");
+                    $('#progressBar').css('width', '0%');
+                    $('#progressBar').text('0%');
+
+                    currentKey = null;
+                },
+                error: function() {
+                    alert("Hiba a törlésnél!");
+                }
+            });
+        }
 
 
       let progressInterval = null;

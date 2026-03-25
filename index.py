@@ -5,20 +5,34 @@ from dotenv import load_dotenv
 import os
 from flask import Flask, render_template, jsonify, request
 from pydub import AudioSegment
+import uuid
 from Logger import *
 from stateManager import StateManager
 from RedisManager import Redis_Manager
 from transcriptionmanager import TextManager
 from Bot import *
 
-load_dotenv()
-global REDIS_HOST, REDIS_PORT, REDIS_DB,OUTPUT_DIR,WHISPER_MODEL
-REDIS_HOST= os.getenv("REDIS_HOST")
-REDIS_PORT= os.getenv("REDIS_PORT")
-REDIS_DB= os.getenv("REDIS_DB")
-OUTPUT_DIR=os.getenv("OUTPUT_DIR")
-WHISPER_MODEL=os.getenv("WHISPER_MODEL")
-# start logger 
+def getEnv():
+    load_dotenv()
+
+    DEMO = os.getenv("DEMO")
+
+    global REDIS_HOST, REDIS_PORT, REDIS_DB, OUTPUT_DIR, WHISPER_MODEL, APP_HOST, APP_PORT, APP_DEBUG
+
+    REDIS_HOST = os.getenv("REDIS_HOST")
+    REDIS_PORT = os.getenv("REDIS_PORT")
+    REDIS_DB = os.getenv("REDIS_DB")
+    OUTPUT_DIR = os.getenv("OUTPUT_DIR")
+    APP_HOST = os.getenv("APP_HOST")
+    APP_PORT = os.getenv("APP_PORT")
+    APP_DEBUG = os.getenv("APP_DEBUG")
+
+    if DEMO == "False":
+        WHISPER_MODEL = os.getenv("WHISPER_MODEL")
+    else:
+        WHISPER_MODEL = None
+
+getEnv()
 global logger
 LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
@@ -31,6 +45,8 @@ stateManager = StateManager(LOGFILE)
 transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
 bots = {}
 
+uuid = str(uuid.uuid4())
+logger.Logging(f"Példány UUID: {uuid}")
 
 app = Flask(__name__)
 logger.Logging("Flask szerver elindult.")
@@ -133,8 +149,18 @@ def listAudioFiles(roomId, timestampId):
 
 @app.route("/API/programStop", methods=["GET", "POST"])
 def shutdown():
-    logger.Logging("Program leállítása.")
-    os._exit(0)
+    data = request.json
+    uuidSent = data.get("uuid")
+
+    if uuidSent != uuid:
+        logger.Logging(f"Nem megfelelő UUID-val próbálták leállítani: {uuidSent}")
+        return jsonify({"error": "Nem megfelelő UUID"})
+
+    logger.Logging(f"Példány leállítása UUID: {uuid}")
+
+    threading.Thread(target=lambda: (time.sleep(1), os._exit(0))).start()
+
+    return jsonify({"status": "Leállítás."})
 
 @app.route("/API/addPlusBot/<roomId>", methods=["GET", "POST"])
 def addPlusBot(roomId):
@@ -165,6 +191,10 @@ def recorderPause(rooId):
 def resumeRecording(rooId):
     bot.resumeRecording(rooId)
 
+@app.route("/API/getUuid", methods=["GET"])
+def getUuid():
+    return jsonify({"uuid": uuid})
+
 #mp3 DEMO innen
 
 @app.route("/API/getMp3", methods=["GET", "POST"])
@@ -190,23 +220,63 @@ def translate():
     audio = AudioSegment.from_mp3(mp3_path)
 
     global redisKey
-    redisKey = transcriptionManager.working(audio, 10, fileName)
-    print(redisKey)
+    redisResult = transcriptionManager.working(audio, 10, fileName)
+    print(redisResult)
 
+    #DEMO
+    if isinstance(redisResult, dict) and redisResult.get("demo"):
+        return jsonify({"text": redisResult["text"], "key": None})
+
+    #NORMÁL
+    redisKey = redisResult["key"]
     bytesText = redisManager.get(redisKey) or b""
     text = bytesText.decode("utf-8")
 
-    return jsonify({"text": text})
+    return jsonify({"text": text, "key": redisKey})
 
-@app.route("/API/getMp3/clear/<fileName>", methods=["GET", "POST"])
-def clear(fileName):
-    redisManager.delete_key(redisKey)
+@app.route("/API/getMp3/clear", methods=["GET", "POST"])
+def clear():
+    data = request.json
+    key = data.get("key")
 
-    progressKey = f"progress:{fileName}"
-    redisManager.set(f"{progressKey}:total", 0)
-    redisManager.set(f"{progressKey}:curr", 0)
+    if not key:
+        return jsonify({"error": "Nincs megadva kulcs!"})
+
+    # törlés redisből
+    redisManager.delete_key(key)
+
+    # törlés progress-ből
+    progressKey = f"progress:{key}"
+    redisManager.delete_key(f"{progressKey}:total")
+    redisManager.delete_key(f"{progressKey}:curr")
 
     return jsonify({"status": "cleared"})
+
+@app.route("/API/changeMode", methods=["POST"])
+def changeMode():
+    mode = request.json.get("mode")
+
+    if mode not in ["demo", "live"]:
+        return jsonify({"error": "Érvénytelen mód. Csak 'demo' vagy 'live' lehet."}), 400
+
+    global  WHISPER_MODEL
+
+    if mode == "live":
+        WHISPER_MODEL = os.getenv("WHISPER_MODEL")
+        transcriptionManager.changeMode(os.getenv("WHISPER_MODEL"))
+        logger.Logging(f"Mód: {os.getenv('WHISPER_MODEL')}")
+    else:
+        WHISPER_MODEL = None
+        transcriptionManager.changeMode(None)
+        logger.Logging(f"Mód: Demo")
+
+    return jsonify({"status": "OK", "mode": mode})
+
+@app.route("/API/getMode", methods=["GET"])
+def getMode():
+    global WHISPER_MODEL
+    mode = "live" if WHISPER_MODEL else "demo"
+    return jsonify({"mode": mode})
 
 @app.route("/API/getMp3/progress/<fileName>", methods=["GET"])
 def get_progress(fileName):
@@ -240,7 +310,4 @@ def startBot(roomId):
 def startTranscriptThread(roomId, timestampId):
     asyncio.run(transcriptionManager.startTranscription(roomId, timestampId))
 
-APP_HOST= os.getenv("APP_HOST")
-APP_PORT= os.getenv("APP_PORT")
-APP_DEBUG= os.getenv("APP_DEBUG")
 app.run(host=APP_HOST, port=APP_PORT, debug=APP_DEBUG)

@@ -34,6 +34,7 @@
       <button class="btn btn-primary" onclick="listRooms()">List rooms</button>
       <button class="btn btn-primary" onclick="toggleBotInput()">Több Bot létrehozása</button>
       <button class="btn btn-primary" onclick="mp3Page()">MP3 lekérése</button>
+      <button id="modeButton" class="btn btn-primary" onclick="toggleMode()">Módváltás (Demo)</button>
 
       <div id="plusBot" class="mt-3">
         <input type="text" id="plusBots" class="form-control" placeholder="Új bot szobanév">
@@ -76,6 +77,24 @@
 
   <script>
     let plusBotIndex = 0;
+    let currentMode = "live";
+    let uuid = "";
+
+    $(document).ready(function() {
+        $.getJSON("/API/getUuid", function(response) {
+            uuid = response.uuid;
+            console.log("Jelenlegi UUID:", uuid);
+        });
+    });
+
+    $(document).ready(function() {
+        $.getJSON("/API/getMode", function(response) {
+            currentMode = response.mode;
+            $('#modeButton').text(`Módváltás (${currentMode})`);
+        }).fail(function(err) {
+            console.error("Hiba a mód lekérésénél:", err);
+        });
+    });
 
     function botPause() {
         const roomId = $('#roomId').val().trim();
@@ -257,14 +276,49 @@
     }
 
     function shutdownServer() {
-        $.get('/API/programStop')
-          .fail(function() {
-              console.error('Failed to fetch.');
-          });
+        if (!uuid) {
+            alert("UUID nem érhető el!");
+            return;
+        }
+
+        $.ajax({
+            url: "/API/programStop",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ uuid: uuid }),
+            dataType: "json",
+            success: function(response) {
+                console.log("Leállítás sikeres:", response);
+            },
+            error: function(err) {
+                console.error("Leállítás sikertelen:", err);
+                alert("Hiba a leállításnál.");
+            }
+        });
     }
 
     function mp3Page() {
         window.location.href = "/API/getMp3";
+    }
+
+    function toggleMode() {
+        const newMode = currentMode === "demo" ? "live" : "demo";
+
+        $.ajax({
+            url: "/API/changeMode",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ mode: newMode }),
+            success: function(response) {
+                currentMode = response.mode;
+                 $('#modeButton').text(`Módváltás (${currentMode})`);
+                console.log("Mode changed:", response);
+            },
+            error: function(err) {
+                console.error("Hiba a módváltásnál:", err);
+                alert("Hiba a módváltásnál.");
+            }
+        });
     }
 
   </script>

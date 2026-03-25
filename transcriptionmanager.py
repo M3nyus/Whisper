@@ -12,11 +12,24 @@ class TextManager:
     def __init__(self,stateManager, WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE):
         # active rooms
         self.data = {}
-        self.model = whisper.load_model(WHISPER_MODEL)
+
+        if WHISPER_MODEL:
+            self.model = whisper.load_model(WHISPER_MODEL)
+        else:
+            self.model = None
+
         self.OUTPUT_DIR = OUTPUT_DIR
         self.redisManager = Redis_Manager(REDIS_HOST, REDIS_PORT, REDIS_DB, LOGFILE)
         self.logger = Logger(LOGFILE)
         self.stateManager = stateManager
+
+    def changeMode(self, model):
+        if model:
+            self.logger.Logging(f"Live modell betöltése: {model}")
+            self.model = whisper.load_model(model)
+        else:
+            self.logger.Logging("Demo mód aktiválva, nincs betöltve modell.")
+            self.model = None
 
     async def startTranscription(self, roomId, timestampId):
         self.logger.logging(f"Feliratozás megkezdése ({roomId}, {timestampId}).")
@@ -96,28 +109,41 @@ class TextManager:
         return key
 
     def working(self, audio, sec, fileName):
-        hangMappa = os.path.join(os.getcwd(), "mp3", "hang")
-        chunks = list(self.chunking(audio, sec))
-        existKey = self.getKey(fileName)
-        progressKey = f"progress:{existKey}"
+        if self.model is not None:
+            mp3Mappa = os.path.join(os.getcwd(), "mp3")
+            hangMappa = os.path.join(os.getcwd(), "mp3", "hang")
+            chunks = list(self.chunking(audio, sec))
+            existKey = self.getKey(fileName)
+            progressKey = f"progress:{existKey}"
 
-        self.redisManager.delete_key(f"{progressKey}:total")
-        self.redisManager.delete_key(f"{progressKey}:curr")
-        self.redisManager.set(f"{progressKey}:total", len(chunks))
-        self.redisManager.set(f"{progressKey}:curr", 0)
+            if not os.path.exists(mp3Mappa):
+                os.makedirs(mp3Mappa)
 
-        for i, chunk in enumerate(chunks):
-            self.logger.Logging(f"hang_{i} feldolgozás megkezdése.")
-            tmp_file = os.path.join(hangMappa, f"hang_{i}.mp3")
-            chunk.export(tmp_file, format="mp3")
+            if not os.path.exists(hangMappa):
+                os.makedirs(hangMappa)
 
-            result = self.model.transcribe(tmp_file, language="hu")
+            self.redisManager.delete_key(f"{progressKey}:total")
+            self.redisManager.delete_key(f"{progressKey}:curr")
+            self.redisManager.set(f"{progressKey}:total", len(chunks))
+            self.redisManager.set(f"{progressKey}:curr", 0)
 
-            self.redisManager.append(existKey, result["text"] + " ")
+            for i, chunk in enumerate(chunks):
+                self.logger.Logging(f"hang_{i} feldolgozás megkezdése.")
+                tmp_file = os.path.join(hangMappa, f"hang_{i}.mp3")
+                chunk.export(tmp_file, format="mp3")
 
-            self.redisManager.set(f"{progressKey}:curr", i + 1)
+                result = self.model.transcribe(tmp_file, language="hu")
 
-            self.logger.Logging(f"hang_{i} feldolgozva.")
-            print(f"hang_{i} feldolgozva.")
+                self.redisManager.append(existKey, result["text"] + " ")
 
-        return existKey
+                self.redisManager.set(f"{progressKey}:curr", i + 1)
+
+                self.logger.Logging(f"hang_{i} feldolgozva.")
+                print(f"hang_{i} feldolgozva.")
+
+            return {"demo": False, "key": existKey}
+        else:
+            progressKey = f"progress:{fileName}"
+            self.redisManager.set(f"{progressKey}:total", 1)
+            self.redisManager.set(f"{progressKey}:curr", 1)
+            return {"demo": True, "text": "Demo mód futott le, azaz nincs betöltött nyelvi modell a feliratozéshoz."}

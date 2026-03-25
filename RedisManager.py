@@ -8,15 +8,21 @@ from pydub import AudioSegment
 import soundfile as sf
 import os
 import time
+
+from redis.cluster import ClusterNode
+from redis.cluster import RedisCluster as Redis
+
 from Logger import *
 import wave
 
 SAMPLE_RATE = 48000
 CHANNELS = 2
-SAMPLE_WIDTH = 2  # bytes (16-bit)
-FRAME_SAMPLES = 960  # 20 ms @ 48 kHz
+SAMPLE_WIDTH = 2
+FRAME_SAMPLES = 960
 FRAME_BYTES = FRAME_SAMPLES * SAMPLE_WIDTH
 FRAMES_PER_SECOND = 50
+
+
 
 class Redis_Manager():
     #DB0, ahova mentünk Redis-ben
@@ -24,6 +30,10 @@ class Redis_Manager():
         self.client = redis.Redis(host=host, port=port, db=db)
         self.mp3_name = None
         self.logger = Logger(LOGFILE)
+
+        # self.client = redis.Redis(Host=host,port=port,db=db)
+        #nodes = [ClusterNode('localhost', 7003), ClusterNode('localhost', 7004)]
+        #self.client = Redis(startup_nodes=nodes)
 
     async def redis_stream_to_wav(self, roomId, chunk, seconds=10,):
         self.logger.Logging(f"Audió fájl létrehozása. Szoba:{roomId}, Chunk:{chunk}")
