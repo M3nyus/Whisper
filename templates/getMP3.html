@@ -12,6 +12,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <title>Whisper</title>
 </head>
@@ -27,7 +28,7 @@
       <div class="mb-3">
         <select id="mp3Select" class="form-select">
             {% for file in mp3_files %}
-                <option value="{{ file }}">{{ file }}</option>
+                <option value="{{ file.name }}">{{ file.name }} ({{ file.duration }})</option>
             {% endfor %}
         </select>
       </div>
@@ -67,25 +68,43 @@
     });
 
     function shutdownServer() {
-        if (!uuid) {
-            alert("UUID nem érhető el!");
-            return;
-        }
 
-        $.ajax({
+      Swal.fire({
+        title: 'Vigyázz!',
+        text: "Biztos le akarod állítani a programot?",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#b91c1c',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Igen',
+        cancelButtonText: 'Nem'
+      }).then((result) => {
+
+        if (result.isConfirmed) {
+
+          if (!uuid) {
+            Swal.fire('Hiba', 'UUID nem érhető el!', 'error');
+            return;
+          }
+
+          $.ajax({
             url: "/API/programStop",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify({ uuid: uuid }),
             dataType: "json",
             success: function(response) {
-                console.log("Leállítás sikeres:", response);
+              window.location.href = "/API/stopped";
+              console.log("Leállítás sikeres:", response);
             },
             error: function(err) {
-                console.error("Leállítás sikertelen:", err);
-                alert("Hiba a leállításnál.");
+              console.error("Leállítás sikertelen:", err);
+              Swal.fire('Hiba!', 'Nem sikerült leállítani.', 'error');
             }
-        });
+          });
+
+        }
+      });
     }
 
     function startMp3Transcription() {
@@ -128,27 +147,41 @@
 
       function clearText() {
             if (!currentKey) {
-                alert("Nincs törölhető adat!")
+                Swal.fire('Figyelem!', "Nincs törölhető adat!", 'info');
                 return;
             }
 
-            $.ajax({
-                url: "/API/getMp3/clear",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({ key: currentKey }),
-                success: function() {
-                    $('#res').html("");
-                    $('#progressBar').css('width', '0%');
-                    $('#progressBar').text('0%');
+            Swal.fire({
+                title: 'Biztos törlöd?',
+                text: "Ez törölni fogja a feliratozási adatokat és a hangfájlokat a mp3/hang mappában!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Törlés',
+                cancelButtonText: 'Mégse'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "/API/getMp3/clear",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({ key: currentKey }),
+                        success: function(response) {
+                            $('#res').html("");
+                            $('#progressBar').css('width', '0%').text('0%');
+                            currentKey = null;
 
-                    currentKey = null;
-                },
-                error: function() {
-                    alert("Hiba a törlésnél!");
+                            Swal.fire('Törölve!', 'Az adatok és a hangfájlok törölve lettek.', 'success');
+                        },
+                        error: function() {
+                            Swal.fire('Hiba!', 'Nem sikerült törölni az adatokat.', 'error');
+                            alert("Hiba a törlésnél!");
+                        }
+                    });
                 }
             });
-        }
+      }
 
 
       let progressInterval = null;

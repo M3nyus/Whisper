@@ -12,6 +12,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <title>Whisper</title>
 </head>
@@ -32,7 +33,7 @@
       <button class="btn btn-primary" onclick="startRoom()">Add room</button>
       <button class="btn btn-primary" onclick="isRoomActive()">Get latest timestampId</button>
       <button class="btn btn-primary" onclick="listRooms()">List rooms</button>
-      <button class="btn btn-primary" onclick="toggleBotInput()">Több Bot létrehozása</button>
+      <button id="toggleBotBtn" class="btn btn-primary" onclick="toggleBotInput()">Több Bot létrehozása</button>
       <button class="btn btn-primary" onclick="mp3Page()">MP3 lekérése</button>
       <button id="modeButton" class="btn btn-primary" onclick="toggleMode()">Módváltás (Demo)</button>
 
@@ -57,11 +58,11 @@
         </div>
 
         <div id="roomActions">
-            <button class="btn btn-primary" onclick="stopRoom()">Kill room (recorder bot)</button>
-            <button class="btn btn-primary" onclick="roomStatus()">Get Room Status</button>
             <button class="btn btn-primary" onclick="getLastText()">getLastText</button>
+            <button class="btn btn-primary" onclick="roomStatus()">Get Room Status</button>
             <button class="btn btn-primary" onclick="botPause()">Bot Pause</button>
             <button class="btn btn-primary" onclick="botResume()">Bot Resume</button>
+            <button class="btn btn-danger" onclick="stopRoom()">Kill room (recorder bot)</button>
       </div>
 
             <div class="bg-white" id="res"></div>
@@ -146,7 +147,7 @@
     }
 
     function roomStatus() {
-      $.getJSON('API/roomStatus/' + $('#roomName').val() + '/' + $('#timestampId').val(), function (data) {
+      $.getJSON('API/roomStatus/' + $('#roomId').val() + '/' + $('#timestampId').val(), function (data) {
         $('#res').html(JSON.stringify(data))
       }).fail(function () {
         console.error('Failed to fetch.');
@@ -167,10 +168,34 @@
     }
 
     function stopRoom() {
-      $.getJSON('API/stopRoom/' + $('#roomName').val() + '/' + $('#timestampId').val(), function (data) {
-        $('#res').html(JSON.stringify(data))
-      }).fail(function () {
-        console.error('Failed to fetch.');
+      const room = $('#roomName').val();
+      const timestamp = $('#timestampId').val();
+
+      Swal.fire({
+        title: 'Biztos vagy benne?',
+        text: `Ez leállítja a(z) "${room}" botot!`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Igen',
+        cancelButtonText: 'Mégse'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          $.getJSON('API/stopRoom/' + room + '/' + timestamp, function (data) {
+            $('#res').html(JSON.stringify(data))
+            }).fail(function () {
+                console.error('Bot leállítása sikertelen.');
+            });
+
+            Swal.fire(
+              'Leállítva!',
+              `A(z) "${room}" bot le lett állítva.`,
+              'success'
+            ).then(() => {
+              resetMainBotUI();
+            });
+        }
       });
     }
 
@@ -185,6 +210,8 @@
 
     function toggleBotInput() {
       $('#plusBot').slideToggle(300);
+
+      $('#toggleBotBtn').toggleClass('btn-primary btn-warning-custom');
     }
 
     function addPlusBot() {
@@ -213,11 +240,11 @@
               <input type="text" id="timestampId_${plusBotIndex}" class="form-control" value="${data.timestampId}">
             </div>
 
-            <button class="btn btn-primary" onclick="stopExtraRoom(${plusBotIndex})">Kill room (recorder bot)</button>
-            <button class="btn btn-primary" onclick="statusExtraRoom(${plusBotIndex})">Get Room Status</button>
             <button class="btn btn-primary" onclick="getLastTextExtra(${plusBotIndex})">getLastText</button>
-            <button class="btn btn-primary" onclick="botPauseExtra()">Bot Pause</button>
-            <button class="btn btn-primary" onclick="botResumeExtra()">Bot Resume</button>
+            <button class="btn btn-primary" onclick="statusExtraRoom(${plusBotIndex})">Get Room Status</button>
+            <button class="btn btn-primary" onclick="botPauseExtra(${plusBotIndex})">Bot Pause</button>
+            <button class="btn btn-primary" onclick="botResumeExtra(${plusBotIndex})">Bot Resume</button>
+            <button class="btn btn-danger" onclick="stopExtraRoom(${plusBotIndex})">Kill room (recorder bot)</button>
 
             <div class="bg-white mt-3 p-3 rounded" id="res_${plusBotIndex}"></div>
 
@@ -234,8 +261,25 @@
     function stopExtraRoom(id) {
       let room = $('#roomName_' + id).val();
       let timestamp = $('#timestampId_' + id).val();
-      $.getJSON('API/stopRoom/' + room + '/' + timestamp, function (data) {
-        $('#res_' + id).html(JSON.stringify(data));
+
+      Swal.fire({
+        title: 'Biztos?',
+        text: `Ez leállítja a(z) "${room}" botot!`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Igen',
+        cancelButtonText: 'Mégse'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          $.getJSON('API/stopRoom/' + room + '/' + timestamp, function (data) {
+            $('#res_' + id).html(JSON.stringify(data));
+
+            Swal.fire('Kész!', 'Bot leállítva.', 'success').then(() => {
+              $('#extraBot_' + id).remove();
+            });
+          });
+        }
       });
     }
 
@@ -275,26 +319,57 @@
         });
     }
 
-    function shutdownServer() {
-        if (!uuid) {
-            alert("UUID nem érhető el!");
-            return;
-        }
+    function resetMainBotUI() {
+      $('#mainBotName').text('Bot - Off');
+      $('#roomId').val('');
+      $('#timestampId').val('');
+      $('#res').html('');
 
-        $.ajax({
+      $('#roomActions').fadeOut();
+
+      $('#mainBotDiv')
+        .removeClass('bot-paused')
+        .addClass('bot-active');
+    }
+
+    function shutdownServer() {
+
+      Swal.fire({
+        title: 'Vigyázz!',
+        text: "Biztos le akarod állítani a programot?",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#b91c1c',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Igen',
+        cancelButtonText: 'Nem'
+      }).then((result) => {
+
+        if (result.isConfirmed) {
+
+          if (!uuid) {
+            Swal.fire('Hiba', 'UUID nem érhető el!', 'error');
+            return;
+          }
+
+          $.ajax({
             url: "/API/programStop",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify({ uuid: uuid }),
             dataType: "json",
             success: function(response) {
-                console.log("Leállítás sikeres:", response);
+              window.location.href = "/API/stopped";
+              console.log("Leállítás sikeres:", response);
             },
             error: function(err) {
-                console.error("Leállítás sikertelen:", err);
-                alert("Hiba a leállításnál.");
+              console.error("Leállítás sikertelen:", err);
+              Swal.fire('Hiba!', 'Nem sikerült leállítani.', 'error');
             }
-        });
+          });
+
+        }
+      });
     }
 
     function mp3Page() {

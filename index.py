@@ -32,6 +32,19 @@ def getEnv():
     else:
         WHISPER_MODEL = None
 
+def deleteMp3Hang():
+    hangMappa = os.path.join(os.getcwd(), "mp3", "hang")
+
+    if os.path.exists(hangMappa) and os.path.isdir(hangMappa):
+        for f in os.listdir(hangMappa):
+            file = os.path.join(hangMappa, f)
+            try:
+                if os.path.isfile(file) or os.path.islink(file):
+                    os.unlink(file)
+            except Exception as e:
+                print(f"Hiba a {file} törlése közben: {e}")
+                logger.Logging(f"Hiba a {file} törlése közben: {e}")
+
 getEnv()
 global logger
 LOGFILE = os.getenv("LOGFILE")
@@ -44,6 +57,8 @@ redisManager.delete_aktualis_db()
 stateManager = StateManager(LOGFILE)
 transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
 bots = {}
+
+deleteMp3Hang()
 
 uuid = str(uuid.uuid4())
 logger.Logging(f"Példány UUID: {uuid}")
@@ -70,13 +85,13 @@ def startRoom(roomId):
 
     redisManager.set(f"{roomId}:{timestampId}:audio:index", 0)
 
-    #szal1: start bot
+    #szál1: start bot
     threading.Thread(target=startBot, args=(roomId,)).start()
     logger.Logging(f"1. szál: Bot({roomId}) elkezdi a feladatát.")
 
-    #szal2: start transcript
+    #szal2: start feliratozás
     threading.Thread(target=startTranscriptThread, args=(roomId,timestampId)).start()
-    logger.Logging(f"2. szél: Feliratorás megkezdése ({roomId}).")
+    logger.Logging(f"2. szál: Feliratorás megkezdése ({roomId}).")
 
     return jsonify({'timestampId': timestampId})
 
@@ -109,15 +124,20 @@ def stopRoom(roomId,timestampId):
 
     if aktiveBot:
         try:
-            asyncio.run(aktiveBot.close())
+            loop = aktiveBot._loop
+            if loop.is_running():
+                fut = asyncio.run_coroutine_threadsafe(aktiveBot.close(), loop)
+                fut.result(timeout=5)
+            else:
+                loop.run_until_complete(aktiveBot.close())
+
+            del bots[roomId]
             logger.Logging("Bot leállítva.")
         except Exception as e:
-            logger.Logging(f"Hiba a bot leállításában, {roomId}, {timestampId}")
-
-        del bots[roomId]
+            logger.Logging(f"Hiba a bot leállításában: {e}")
 
     stateManager.data[roomId][timestampId]['getting_audio'] = False
-    return jsonify({'status': 'OK'})
+    return jsonify({'status': 'Leállítva.'})
 
 @app.route("/API/listRooms", methods=["GET", "POST"])
 def listRooms():
@@ -162,6 +182,10 @@ def shutdown():
 
     return jsonify({"status": "Leállítás."})
 
+@app.route("/API/stopped")
+def stoppedPage():
+    return render_template("shutdown.html")
+
 @app.route("/API/addPlusBot/<roomId>", methods=["GET", "POST"])
 def addPlusBot(roomId):
     logger.Logging(f"Új bot létrehozása (Szobanév: {roomId}).")
@@ -184,12 +208,16 @@ def addPlusBot(roomId):
     return jsonify({'timestampId': timestampId})
 
 @app.route("/API/recorderPause/<roomId>", methods=["GET", "POST"])
-def recorderPause(rooId):
-    bot.pauseRecord(rooId)
+def recorderPause(roomId):
+    aktiveBot = bots.get(roomId)
+    if aktiveBot:
+        aktiveBot.pauseRecord()
 
 @app.route("/API/recorderResume/<roomId>", methods=["GET", "POST"])
-def resumeRecording(rooId):
-    bot.resumeRecording(rooId)
+def resumeRecording(roomId):
+    aktiveBot = bots.get(roomId)
+    if aktiveBot:
+        aktiveBot.resumeRecording()
 
 @app.route("/API/getUuid", methods=["GET"])
 def getUuid():
@@ -203,7 +231,18 @@ def getMp3():
     mp3_files = []
 
     if os.path.exists(mp3_folder):
-        mp3_files = [f for f in os.listdir(mp3_folder) if f.endswith(".mp3")]
+        for f in os.listdir(mp3_folder):
+            if f.endswith(".mp3"):
+                file_path = os.path.join(mp3_folder, f)
+                try:
+                    audio = AudioSegment.from_file(file_path)
+                    sec = int(audio.duration_seconds)
+                    minutes = sec // 60
+                    seconds = sec % 60
+                    mp3_files.append({"name": f, "duration": f"{minutes}:{seconds:02d}"})
+                except Exception as e:
+                    logger.Logging(f"Hiba a {f} betöltésekor: {e}")
+                    mp3_files.append({"name": f, "duration": "??:??"})
 
     return render_template("getMP3.html", mp3_files=mp3_files)
 
@@ -250,6 +289,19 @@ def clear():
     redisManager.delete_key(f"{progressKey}:total")
     redisManager.delete_key(f"{progressKey}:curr")
 
+    # torlés /mp3/hang mappabol
+    hangMappa = os.path.join(os.getcwd(), "mp3", "hang")
+
+    if os.path.exists(hangMappa) and os.path.isdir(hangMappa):
+        for f in os.listdir(hangMappa):
+            file = os.path.join(hangMappa, f)
+            try:
+                if os.path.isfile(file) or os.path.islink(file):
+                    os.unlink(file)
+            except Exception as e:
+                print(f"Hiba a {file} törlése közben: {e}")
+                logger.Logging(f"Hiba a {file} törlése közben: {e}")
+
     return jsonify({"status": "cleared"})
 
 @app.route("/API/changeMode", methods=["POST"])
@@ -294,7 +346,7 @@ def startBot(roomId):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    bot = Demo(roomdId=roomId, LOGFILE=LOGFILE, player=None, recorder=MediaBlackhole(), loop=loop)
+    bot = Demo(roomId=roomId, LOGFILE=LOGFILE, player=None, recorder=MediaBlackhole(), loop=loop)
     logger.Logging("Bot létrehozva.")
     bots[roomId] = bot
     print(bots)

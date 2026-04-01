@@ -25,7 +25,6 @@ FRAMES_PER_SECOND = 50
 
 
 class Redis_Manager():
-    #DB0, ahova mentünk Redis-ben
     def __init__(self, host, port, db, LOGFILE):
         self.client = redis.Redis(host=host, port=port, db=db)
         self.mp3_name = None

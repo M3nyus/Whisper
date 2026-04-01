@@ -32,7 +32,7 @@ class TextManager:
             self.model = None
 
     async def startTranscription(self, roomId, timestampId):
-        self.logger.logging(f"Feliratozás megkezdése ({roomId}, {timestampId}).")
+        self.logger.Logging(f"Feliratozás megkezdése ({roomId}, {timestampId}).")
         chunk = 0
 
         while  True:

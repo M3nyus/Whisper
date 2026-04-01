@@ -86,7 +86,7 @@ class AudioToRedisTrack(AudioStreamTrack):
         return frame
 
 class Demo:
-    def __init__(self, roomdId, LOGFILE, player=None, recorder=MediaBlackhole(), loop=None):
+    def __init__(self, roomId, LOGFILE, player=None, recorder=MediaBlackhole(), loop=None):
         if loop is None:
             try:
                 loop = asyncio.get_running_loop()
@@ -95,7 +95,7 @@ class Demo:
                 asyncio.set_event_loop(loop)
 
         self._loop = loop
-        self.roomId = roomdId
+        self.roomId = roomId
         self._uri = self.build_uri()
         self._player = player
         self._recorder = recorder
@@ -134,14 +134,14 @@ class Demo:
     def pauseRecord(self):
         for track in self._recorder._tracks:
             if isinstance(track, AudioToRedisTrack):
-                track.pause()
+                track.run = False
         self.logger.Logging("Hangrögzítés szüneteltetve.")
 
     #resume
     def resumeRecording(self):
         for track in self._recorder._tracks:
             if isinstance(track, AudioToRedisTrack):
-                track.resume()
+                track.run = True
         self.logger.Logging("Hangrögzítés folytatva.")
 
     # websocket receive task
@@ -513,6 +513,9 @@ class Demo:
         for task in self._tasks:
             print('task.cancel()',task)
             task.cancel()
+            await asyncio.sleep(0.1)
+        if hasattr(self._recorder, "stop"):
+            await self._recorder.stop()
         if self._sendTransport:
             print('await self._sendTransport.close()')
             await self._sendTransport.close()
