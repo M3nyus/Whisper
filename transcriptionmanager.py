@@ -9,8 +9,7 @@ from RedisManager import *
 
 # starts transcription on the audio recived by the audio manager
 class TextManager:
-    def __init__(self,stateManager, WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE):
-        # active rooms
+    def __init__(self,stateManager, WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_PASS,LOGFILE):
         self.data = {}
 
         if WHISPER_MODEL:
@@ -19,9 +18,10 @@ class TextManager:
             self.model = None
 
         self.OUTPUT_DIR = OUTPUT_DIR
-        self.redisManager = Redis_Manager(REDIS_HOST, REDIS_PORT, REDIS_DB, LOGFILE)
+        self.redisManager = Redis_Manager(REDIS_HOST, REDIS_PORT, REDIS_PASS, LOGFILE)
         self.logger = Logger(LOGFILE)
         self.stateManager = stateManager
+        self.state = 0
 
     def changeMode(self, model):
         if model:
@@ -106,6 +106,7 @@ class TextManager:
             key = f"{name}_{i}"
 
         self.redisManager.set(key, "")
+        self.logger.Logging(f" Redis - getKey() - {key}")
         return key
 
     def working(self, audio, sec, fileName):
@@ -128,15 +129,38 @@ class TextManager:
             self.redisManager.set(f"{progressKey}:curr", 0)
 
             for i, chunk in enumerate(chunks):
+                while self.state == 1:
+                    time.sleep(1)
+
                 self.logger.Logging(f"hang_{i} feldolgozás megkezdése.")
+
+                while self.state == 1:
+                    time.sleep(1)
+
                 tmp_file = os.path.join(hangMappa, f"hang_{i}.mp3")
+
+                while self.state == 1:
+                    time.sleep(1)
+
                 chunk.export(tmp_file, format="mp3")
+
+                while self.state == 1:
+                    time.sleep(1)
 
                 result = self.model.transcribe(tmp_file, language="hu")
 
+                while self.state == 1:
+                    time.sleep(1)
+
                 self.redisManager.append(existKey, result["text"] + " ")
 
+                while self.state == 1:
+                    time.sleep(1)
+
                 self.redisManager.set(f"{progressKey}:curr", i + 1)
+
+                while self.state == 1:
+                    time.sleep(1)
 
                 self.logger.Logging(f"hang_{i} feldolgozva.")
                 print(f"hang_{i} feldolgozva.")
@@ -147,3 +171,11 @@ class TextManager:
             self.redisManager.set(f"{progressKey}:total", 1)
             self.redisManager.set(f"{progressKey}:curr", 1)
             return {"demo": True, "text": "Demo mód futott le, azaz nincs betöltött nyelvi modell a feliratozéshoz."}
+
+    def pause(self):
+        self.state = 1
+        self.logger.Logging("PAUSE")
+
+    def resume(self):
+        self.state = 0
+        self.logger.Logging("RESUME")

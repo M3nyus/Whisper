@@ -49,12 +49,12 @@
 
         <div class="mb-3">
               <label class="form-label">Room</label>
-              <input type="text" id="roomId" class="form-control" placeholder="Room Name">
+              <input type="text" id="roomId" class="form-control" placeholder="Room Name" readonly>
         </div>
 
         <div class="mb-3">
               <label class="form-label">Timestamp ID</label>
-              <input type="text" id="timestampId" class="form-control" placeholder="Timestamp ID">
+              <input type="text" id="timestampId" class="form-control" placeholder="Timestamp ID" readonly>
         </div>
 
         <div id="roomActions">
@@ -224,7 +224,6 @@
       $.getJSON('API/addPlusBot/' + roomName, function (data) {
         plusBotIndex++;
 
-        // csak a második gomb és további botokhoz nincs "Add room"
         let newBotHtml = `
           <hr class="my-4">
           <div class="div3 mt-4 bot-active" id="extraBot_${plusBotIndex}">
@@ -232,12 +231,12 @@
 
             <div class="mb-3">
               <label class="form-label">Room</label>
-              <input type="text" id="roomName_${plusBotIndex}" class="form-control" value="${roomName}">
+              <input type="text" id="roomName_${plusBotIndex}" class="form-control" value="${roomName}" readonly>
             </div>
 
             <div class="mb-3">
               <label class="form-label">Timestamp ID</label>
-              <input type="text" id="timestampId_${plusBotIndex}" class="form-control" value="${data.timestampId}">
+              <input type="text" id="timestampId_${plusBotIndex}" class="form-control" value="${data.timestampId}" readonly>
             </div>
 
             <button class="btn btn-primary" onclick="getLastTextExtra(${plusBotIndex})">getLastText</button>

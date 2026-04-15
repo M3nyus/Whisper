@@ -17,10 +17,11 @@ def getEnv():
 
     DEMO = os.getenv("DEMO")
 
-    global REDIS_HOST, REDIS_PORT, REDIS_DB, OUTPUT_DIR, WHISPER_MODEL, APP_HOST, APP_PORT, APP_DEBUG
+    global REDIS_HOST, REDIS_PORT, REDIS_PASS, REDIS_DB, OUTPUT_DIR, WHISPER_MODEL, APP_HOST, APP_PORT, APP_DEBUG
 
     REDIS_HOST = os.getenv("REDIS_HOST")
     REDIS_PORT = os.getenv("REDIS_PORT")
+    REDIS_PASS = os.getenv("REDIS_PASS").strip()
     REDIS_DB = os.getenv("REDIS_DB")
     OUTPUT_DIR = os.getenv("OUTPUT_DIR")
     APP_HOST = os.getenv("APP_HOST")
@@ -51,11 +52,11 @@ LOGFILE = os.getenv("LOGFILE")
 logger = Logger(LOGFILE)
 global bot
 
-redisManager = Redis_Manager(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, LOGFILE=LOGFILE)
+redisManager = Redis_Manager(REDIS_HOST, REDIS_PORT,REDIS_PASS, LOGFILE=LOGFILE)
 redisManager.fut_e()
-redisManager.delete_aktualis_db()
+#redisManager.delete_aktualis_db()
 stateManager = StateManager(LOGFILE)
-transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_DB,LOGFILE)
+transcriptionManager = TextManager(stateManager,WHISPER_MODEL, OUTPUT_DIR,REDIS_HOST,REDIS_PORT,REDIS_PASS,LOGFILE)
 bots = {}
 
 deleteMp3Hang()
@@ -268,10 +269,20 @@ def translate():
 
     #NORMÁL
     redisKey = redisResult["key"]
-    bytesText = redisManager.get(redisKey) or b""
-    text = bytesText.decode("utf-8")
+    bytesText = redisManager.get(redisKey) or ""
+    text = bytesText
 
     return jsonify({"text": text, "key": redisKey})
+
+@app.route("/API/getMp3/pause", methods=["POST"])
+def pauseTranscription():
+    transcriptionManager.pause()
+    return jsonify({"status": "pause"})
+
+@app.route("/API/getMp3/resume", methods=["POST"])
+def resumeTranscription():
+    transcriptionManager.resume()
+    return jsonify({"status": "resume"})
 
 @app.route("/API/getMp3/clear", methods=["GET", "POST"])
 def clear():
@@ -280,9 +291,6 @@ def clear():
 
     if not key:
         return jsonify({"error": "Nincs megadva kulcs!"})
-
-    # törlés redisből
-    redisManager.delete_key(key)
 
     # törlés progress-ből
     progressKey = f"progress:{key}"

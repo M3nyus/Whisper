@@ -1,5 +1,5 @@
 import sys
-import redis as redis
+#import redis as redis
 import asyncio
 import json
 import base64
@@ -8,12 +8,10 @@ from pydub import AudioSegment
 import soundfile as sf
 import os
 import time
-
-from redis.cluster import ClusterNode
 from redis.cluster import RedisCluster as Redis
-
 from Logger import *
 import wave
+from urllib.parse import quote
 
 SAMPLE_RATE = 48000
 CHANNELS = 2
@@ -25,14 +23,16 @@ FRAMES_PER_SECOND = 50
 
 
 class Redis_Manager():
-    def __init__(self, host, port, db, LOGFILE):
-        self.client = redis.Redis(host=host, port=port, db=db)
+    def __init__(self,host, port, password, LOGFILE):
+        self.encodedPass = quote(password)
+        self.url = f"redis://:{self.encodedPass}@{host}:{port}/0"
+        self.client = Redis(url=self.url, decode_responses=True)
+
         self.mp3_name = None
         self.logger = Logger(LOGFILE)
 
-        # self.client = redis.Redis(Host=host,port=port,db=db)
-        #nodes = [ClusterNode('localhost', 7003), ClusterNode('localhost', 7004)]
-        #self.client = Redis(startup_nodes=nodes)
+        #Single Redis
+        #self.client = redis.Redis(host=host, port=port, db=db)
 
     async def redis_stream_to_wav(self, roomId, chunk, seconds=10,):
         self.logger.Logging(f"Audió fájl létrehozása. Szoba:{roomId}, Chunk:{chunk}")
@@ -88,7 +88,7 @@ class Redis_Manager():
 
     def append(self, key, value):
         self.client.append(key, value)
-        self.logger.Logging("Append - {key}")
+        self.logger.Logging(f"Append - {key}")
 
     def delete_aktualis_db(self):
         aktualisDb = self.client.connection_pool.connection_kwargs.get("db")

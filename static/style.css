@@ -156,3 +156,18 @@ body::before {
 #toggleBotBtn {
     transition: all 0.3s ease;
 }
+
+.btn-pause {
+    background: linear-gradient(135deg, #1E3A8A, #2563EB);
+    color: white;
+}
+
+.btn-resume {
+    background: linear-gradient(135deg, #facc15, #eab308);
+    color: black;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
